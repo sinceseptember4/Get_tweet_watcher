@@ -74,10 +74,13 @@ foreach ($user in $userList) {
     Write-Host "Getting tweets for: $($user.Username)..."
     $tweets = Get-RecentTweets -username $user.Username -userId $user.UserId
     $tweetList += $tweets
-    Start-Sleep -Seconds 6
+    Start-Sleep -Seconds 30
 }
-
+function Get-Now {
+    return (Get-Date).ToString("yyyyMMdd_HHmmss")
+}
+$currentTime = Get-Now
 # Export result
-$csvOutputPath = "$PSScriptRoot\tweet_result.csv"
+$csvOutputPath = "$PSScriptRoot\tweet_result_$currentTime.csv"
 $tweetList | Export-Csv -Path $csvOutputPath -NoTypeInformation -Encoding UTF8
 Write-Host "✅ Tweet export complete → $csvOutputPath"
