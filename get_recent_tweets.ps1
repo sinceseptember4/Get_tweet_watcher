@@ -1,5 +1,6 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Load Bearer Token
 $envFilePath = "$PSScriptRoot\.env"
 
 function Load-EnvFile {
@@ -17,16 +18,18 @@ function Load-EnvFile {
 
 $env = Load-EnvFile -filePath $envFilePath
 $bearerToken = $env["BEARER_TOKEN"].Trim()
-Write-Host "BEARER_TOKEN='$bearerToken'"
+Write-Host "Bearer token loaded."
 
+# Load User list from CSV
 $csvPath = "$PSScriptRoot\userId_result.csv"
 if (!(Test-Path $csvPath)) {
-    Write-Host "Error: CSV file not found -> $csvPath"
+    Write-Host "❌ Error: userId_result.csv not found at $csvPath"
     exit
 }
 
 $userList = Import-Csv -Path $csvPath
 
+# Function to get recent tweets
 function Get-RecentTweets {
     param ($username, $userId)
 
@@ -36,7 +39,7 @@ function Get-RecentTweets {
     try {
         $response = Invoke-RestMethod -Uri $url -Headers $headers -ErrorAction Stop
     } catch {
-        Write-Host "$username → API failed: $($_.Exception.Message)"
+        Write-Host "$username → API Error: $($_.Exception.Message)"
         return @()
     }
 
@@ -47,9 +50,9 @@ function Get-RecentTweets {
         $createdAt = [datetime]$tweet.created_at
         if ($createdAt -ge $threeDaysAgo) {
             $recentTweets += [PSCustomObject]@{
-                Username = $username
-                CreatedAt = $createdAt
-                URL = "https://twitter.com/$username/status/$($tweet.id)"
+                Username   = $username
+                CreatedAt  = $createdAt.ToString("yyyy/MM/dd HH:mm:ss")
+                TweetUrl   = "https://twitter.com/$username/status/$($tweet.id)"
             }
         } else {
             break
@@ -59,19 +62,22 @@ function Get-RecentTweets {
     return $recentTweets
 }
 
+# Collect tweets
 $tweetList = @()
 
 foreach ($user in $userList) {
-    if ([string]::IsNullOrWhiteSpace($user.UserId)) {
-        Write-Host "UserId is empty for: $($user.Username)"
+    if ([string]::IsNullOrWhiteSpace($user.UserId) -or [string]::IsNullOrWhiteSpace($user.Username)) {
+        Write-Host "⚠️ Skipping user with missing data: $($user | Out-String)"
         continue
     }
-    Write-Host "Fetching tweets for $($user.Username)..."
+
+    Write-Host "Getting tweets for: $($user.Username)..."
     $tweets = Get-RecentTweets -username $user.Username -userId $user.UserId
     $tweetList += $tweets
-    Start-Sleep -Seconds 6  # API rate limit protection
+    Start-Sleep -Seconds 6
 }
 
+# Export result
 $csvOutputPath = "$PSScriptRoot\tweet_result.csv"
 $tweetList | Export-Csv -Path $csvOutputPath -NoTypeInformation -Encoding UTF8
-Write-Host "✅ Tweet CSV export completed → $csvOutputPath"
+Write-Host "✅ Tweet export complete → $csvOutputPath"

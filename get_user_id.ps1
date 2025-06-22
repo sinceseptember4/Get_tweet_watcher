@@ -1,4 +1,6 @@
-# Replace with your own Bearer Token
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+# Load Bearer Token
 $envFilePath = "$PSScriptRoot\.env"
 
 function Load-EnvFile {
@@ -18,14 +20,12 @@ $env = Load-EnvFile -filePath $envFilePath
 $bearerToken = $env["BEARER_TOKEN"].Trim()
 Write-Host "BEARER_TOKEN='$bearerToken'"
 
-# List of URLs to check (change as needed)
+# Input URLs
 $urls = @(
-    "https://twitter.com/elonmusk/status/1936663418456732069",
-    "https://twitter.com/BarackObama/status/1936571693746753674",
-    "https://twitter.com/nasa/status/1936548151370056073"
+    "https://twitter.com/elonmusk/status/1936663418456732069"
 )
 
-# Function to get UserId by username
+# Get Twitter ID by username
 function Get-UserId {
     param ($username)
 
@@ -41,7 +41,7 @@ function Get-UserId {
     }
 }
 
-# Extract username from URL
+# Extract username from tweet URL
 function Extract-Username {
     param ($url)
     if ($url -match "twitter\.com/([^/]+)/status") {
@@ -53,10 +53,9 @@ function Extract-Username {
 $csvPath = "$PSScriptRoot\userId_result.csv"
 if (Test-Path $csvPath) { Remove-Item $csvPath }
 
-# List to store UserId data
+# Get all user info and save
 $userIdList = @()
 
-# Main process
 foreach ($url in $urls) {
     $username = Extract-Username -url $url
     if ($username) {
@@ -64,14 +63,15 @@ foreach ($url in $urls) {
         Write-Host "User: $username, ID: $userId"
 
         $userIdList += [PSCustomObject]@{
-            UserId = $userId
+            Username = $username
+            UserId   = $userId
         }
     } else {
-        Write-Host "Invalid URL format: $url"
+        Write-Host "Invalid URL: $url"
     }
-    Start-Sleep -Seconds 3  # To avoid hitting API limits
+    Start-Sleep -Seconds 3
 }
 
-# Export UserId only to CSV
+# Save to CSV
 $userIdList | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
 Write-Host "✅ CSV export done → $csvPath"
